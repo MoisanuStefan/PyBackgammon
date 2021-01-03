@@ -2,7 +2,6 @@ import arcade
 from checker import Checker
 from point import Point
 from dice import Dice
-from my_flat_button import MyFlatButton
 from arcade.gui import UIManager
 
 DICE_WIDTH = 50
@@ -51,14 +50,15 @@ class StefGammon(arcade.View):
         self.turn = None
         self.rolls = []
         self.used_rolls = []
-        self.roll_pressed = None
+        self.tick_pressed = None
 
         self.choose_turns_button = None
         self.dice_faces = []
         self.red_begins_button = None
         self.white_begins_button = None
         self.roll_again_button = None
-        self.roll_button = None
+        self.ok_button = None
+        self.tick_button = None
 
     def setup(self):
         """ Set up the game here. Call this function to restart the game. """
@@ -72,9 +72,9 @@ class StefGammon(arcade.View):
         self.white_begins_button = arcade.load_texture("resources/white_begins_button.png")
         self.red_begins_button = arcade.load_texture("resources/red_begins_button.png")
         self.roll_again_button = arcade.load_texture("resources/roll_again_button.png")
-        self.roll_button = arcade.load_texture("resources/roll_button.png")
+        self.tick_button = arcade.load_texture("resources/tick_button.png")
 
-        self.roll_pressed = False
+        self.tick_pressed = False
         POINTS_POSITIONS.reverse()
         self.set_points()
         self.set_checkers()
@@ -106,23 +106,21 @@ class StefGammon(arcade.View):
                 arcade.draw_texture_rectangle(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2, 200, 50, self.red_begins_button)
         elif self.game_state == "started":
             if self.turn == 0:
-                arcade.draw_texture_rectangle(SCREEN_WIDTH - PLAYER_STAT_WIDTH / 2, SCREEN_HEIGHT / 2, 70, 70, self.roll_button)
-                if self.roll_pressed:
-                    arcade.draw_texture_rectangle(
-                        SCREEN_WIDTH - PLAYER_STAT_WIDTH - BOARD_WIDTH / 4 - DICE_WIDTH / 2 - 5,
-                        SCREEN_HEIGHT / 2, 50, 50, self.dice.get_face(self.rolls[0]))
-                    arcade.draw_texture_rectangle(
-                        SCREEN_WIDTH - PLAYER_STAT_WIDTH - BOARD_WIDTH / 4 + DICE_WIDTH / 2 + 5,
-                        SCREEN_HEIGHT / 2, 50, 50, self.dice.get_face(self.rolls[1]))
+                arcade.draw_texture_rectangle(SCREEN_WIDTH - PLAYER_STAT_WIDTH / 2, SCREEN_HEIGHT / 2, 70, 70, self.tick_button)
+                arcade.draw_texture_rectangle(
+                    SCREEN_WIDTH - PLAYER_STAT_WIDTH - BOARD_WIDTH / 4 - DICE_WIDTH / 2 - 5,
+                    SCREEN_HEIGHT / 2, 50, 50, self.dice.get_face(self.rolls[0]))
+                arcade.draw_texture_rectangle(
+                    SCREEN_WIDTH - PLAYER_STAT_WIDTH - BOARD_WIDTH / 4 + DICE_WIDTH / 2 + 5,
+                    SCREEN_HEIGHT / 2, 50, 50, self.dice.get_face(self.rolls[1]))
             else:
-                arcade.draw_texture_rectangle(PLAYER_STAT_WIDTH / 2, SCREEN_HEIGHT / 2, 70, 70, self.roll_button)
-                if self.roll_pressed:
-                    arcade.draw_texture_rectangle(
-                        PLAYER_STAT_WIDTH + BOARD_WIDTH / 4 - DICE_WIDTH / 2 - 5,
-                        SCREEN_HEIGHT / 2, 50, 50, self.dice.get_face(self.rolls[0]))
-                    arcade.draw_texture_rectangle(
-                        PLAYER_STAT_WIDTH + BOARD_WIDTH / 4 + DICE_WIDTH / 2 + 5,
-                        SCREEN_HEIGHT / 2, 50, 50, self.dice.get_face(self.rolls[1]))
+                arcade.draw_texture_rectangle(PLAYER_STAT_WIDTH / 2, SCREEN_HEIGHT / 2, 70, 70, self.tick_button)
+                arcade.draw_texture_rectangle(
+                    PLAYER_STAT_WIDTH + BOARD_WIDTH / 4 - DICE_WIDTH / 2 - 5,
+                    SCREEN_HEIGHT / 2, 50, 50, self.dice.get_face(self.rolls[0]))
+                arcade.draw_texture_rectangle(
+                    PLAYER_STAT_WIDTH + BOARD_WIDTH / 4 + DICE_WIDTH / 2 + 5,
+                    SCREEN_HEIGHT / 2, 50, 50, self.dice.get_face(self.rolls[1]))
 
 
     def on_mouse_press(self, x, y, button, key_modifiers):
@@ -138,6 +136,7 @@ class StefGammon(arcade.View):
             if SCREEN_WIDTH / 2 - 100 <= x <= SCREEN_WIDTH / 2 + 100 and SCREEN_HEIGHT / 2 - 25 <= y <= SCREEN_HEIGHT / 2 + 25:
                 if self.white_roll != self.red_roll:
                     self.game_state = "started"
+                    self.rolls = self.dice.double_roll()
                     if self.white_roll > self.red_roll:
                         self.turn = 0
                     else:
@@ -147,17 +146,13 @@ class StefGammon(arcade.View):
                     self.red_roll = self.dice.roll()
 
         elif self.game_state == "started":
-            if len(self.rolls) == 0:
-            # press on roll button at white turn
+            if len(self.used_rolls) == 2:
+            # press on tick button at white turn
                 if 0 <= SCREEN_WIDTH / 2 + BOARD_WIDTH / 2 + PLAYER_STAT_WIDTH / 2 + 35 - x <= 70 and 0 <= SCREEN_HEIGHT / 2 + 35 - y <= 70 and self.turn == 0:
                     self.rolls = self.dice.double_roll()
-                    print(self.rolls[0], self.rolls[1])
-                    self.roll_pressed = True
                     self.turn = 1 - self.turn
                 if 0 <= PLAYER_STAT_WIDTH / 2 + 35 - x <= 70 and 0 <= SCREEN_HEIGHT / 2 + 35 - y <= 70 and self.turn == 1:
                     self.rolls = self.dice.double_roll()
-                    print(self.rolls[0], self.rolls[1])
-                    self.roll_pressed = True
                     self.turn = 1 - self.turn
 
             clicked_checkers = arcade.get_sprites_at_point((x, y), self.checker_list)
