@@ -28,6 +28,17 @@ def offset_points_positions(points_positions):
         points_positions[index][1] += POINT_X_OFFSET
         points_positions[index][0] += POINT_Y_OFFSET
 
+def list_difference(li1, li2):
+    list = []
+    # list of 4 identical elements
+    if len(li1) == 4:
+        for count in range(4 - len(li2)):
+            list.append(li1[0])
+        return list
+    else:
+        return [i for i in li1 if i not in li2]
+
+
 
 # to do: set points in their position, set checkers in position
 class StefGammon(arcade.View):
@@ -107,20 +118,30 @@ class StefGammon(arcade.View):
         elif self.game_state == "started":
             if self.turn == 0:
                 arcade.draw_texture_rectangle(SCREEN_WIDTH - PLAYER_STAT_WIDTH / 2, SCREEN_HEIGHT / 2, 70, 70, self.tick_button)
-                arcade.draw_texture_rectangle(
-                    SCREEN_WIDTH - PLAYER_STAT_WIDTH - BOARD_WIDTH / 4 - DICE_WIDTH / 2 - 5,
-                    SCREEN_HEIGHT / 2, 50, 50, self.dice.get_face(self.rolls[0]))
-                arcade.draw_texture_rectangle(
-                    SCREEN_WIDTH - PLAYER_STAT_WIDTH - BOARD_WIDTH / 4 + DICE_WIDTH / 2 + 5,
-                    SCREEN_HEIGHT / 2, 50, 50, self.dice.get_face(self.rolls[1]))
+                sign = -1
+                not_used_rolls = list_difference(self.rolls, self.used_rolls)
+                for index, roll in enumerate(not_used_rolls):
+                    offset = sign * (index // 2 + 1) * (DICE_WIDTH / 2 + 5)
+                    arcade.draw_texture_rectangle(
+                        SCREEN_WIDTH - PLAYER_STAT_WIDTH - BOARD_WIDTH / 4 + offset,
+                        SCREEN_HEIGHT / 2, 50, 50, self.dice.get_face(roll))
+                    sign = -sign
             else:
                 arcade.draw_texture_rectangle(PLAYER_STAT_WIDTH / 2, SCREEN_HEIGHT / 2, 70, 70, self.tick_button)
-                arcade.draw_texture_rectangle(
-                    PLAYER_STAT_WIDTH + BOARD_WIDTH / 4 - DICE_WIDTH / 2 - 5,
-                    SCREEN_HEIGHT / 2, 50, 50, self.dice.get_face(self.rolls[0]))
-                arcade.draw_texture_rectangle(
-                    PLAYER_STAT_WIDTH + BOARD_WIDTH / 4 + DICE_WIDTH / 2 + 5,
-                    SCREEN_HEIGHT / 2, 50, 50, self.dice.get_face(self.rolls[1]))
+                sign = -1
+                not_used_rolls = list_difference(self.rolls, self.used_rolls)
+                for index, roll in enumerate(not_used_rolls):
+                    offset = sign * (index // 2 + 1) * (DICE_WIDTH / 2 + 5)
+                    arcade.draw_texture_rectangle(
+                        PLAYER_STAT_WIDTH + BOARD_WIDTH / 4 + offset,
+                        SCREEN_HEIGHT / 2, 50, 50, self.dice.get_face(roll))
+                    sign = -sign
+                # arcade.draw_texture_rectangle(
+                #     PLAYER_STAT_WIDTH + BOARD_WIDTH / 4 - DICE_WIDTH / 2 - 5,
+                #     SCREEN_HEIGHT / 2, 50, 50, self.dice.get_face(self.rolls[0]))
+                # arcade.draw_texture_rectangle(
+                #     PLAYER_STAT_WIDTH + BOARD_WIDTH / 4 + DICE_WIDTH / 2 + 5,
+                #     SCREEN_HEIGHT / 2, 50, 50, self.dice.get_face(self.rolls[1]))
 
 
     def on_mouse_press(self, x, y, button, key_modifiers):
@@ -146,14 +167,16 @@ class StefGammon(arcade.View):
                     self.red_roll = self.dice.roll()
 
         elif self.game_state == "started":
-            if len(self.used_rolls) == 2:
+            if len(self.used_rolls) == len(self.rolls):
             # press on tick button at white turn
                 if 0 <= SCREEN_WIDTH / 2 + BOARD_WIDTH / 2 + PLAYER_STAT_WIDTH / 2 + 35 - x <= 70 and 0 <= SCREEN_HEIGHT / 2 + 35 - y <= 70 and self.turn == 0:
                     self.rolls = self.dice.double_roll()
                     self.turn = 1 - self.turn
+                    self.used_rolls.clear()
                 if 0 <= PLAYER_STAT_WIDTH / 2 + 35 - x <= 70 and 0 <= SCREEN_HEIGHT / 2 + 35 - y <= 70 and self.turn == 1:
                     self.rolls = self.dice.double_roll()
                     self.turn = 1 - self.turn
+                    self.used_rolls.clear()
 
             clicked_checkers = arcade.get_sprites_at_point((x, y), self.checker_list)
             for checker in clicked_checkers:

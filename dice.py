@@ -18,4 +18,8 @@ class Dice:
         return random.randint(1, 6)
 
     def double_roll(self):
-        return random.randint(1, 6), random.randint(1, 6)
+        roll1 = random.randint(1, 6)
+        roll2 = random.randint(1, 6)
+        if roll1 == roll2:
+            return roll1, roll1, roll1, roll1
+        return roll1, roll2

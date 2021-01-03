@@ -27,7 +27,9 @@ class Point(arcade.Sprite):
 
     def add_checker(self, checker, rolls, used_rolls):
         move_value = abs(checker.point.id - self.id)
-        if move_value not in rolls or move_value in used_rolls:
+        if move_value not in rolls:
+            return False, None
+        if len(rolls) == 2 and move_value in used_rolls:
             return False, None
         if checker.colorr == 0 and self.id - checker.point.id < 0:
             return False, None
