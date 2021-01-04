@@ -20,6 +20,7 @@ CHECKER_POSITIONS = [[70, 254], [70, 590], [70, 772], [70, 1192]]
 CHECKER_COLORS = (1, 0, 0, 1)
 CHECKER_PILES = (6, 3, 6, 2)
 CHECKER_PILE_OFFSET = 50
+DEAD_CHECKER_PILE_DIRECTION = [1, -1]
 
 
 # transform point lower_left corner position to point center position by adding offset
@@ -27,6 +28,7 @@ def offset_points_positions(points_positions):
     for index in range(len(points_positions)):
         points_positions[index][1] += POINT_X_OFFSET
         points_positions[index][0] += POINT_Y_OFFSET
+
 
 def list_difference(li1, li2):
     list = []
@@ -39,7 +41,6 @@ def list_difference(li1, li2):
         return [i for i in li1 if i not in li2]
 
 
-
 # to do: set points in their position, set checkers in position
 class StefGammon(arcade.View):
     def __init__(self):
@@ -50,6 +51,7 @@ class StefGammon(arcade.View):
         self.background_right = None
         self.checker_list = arcade.SpriteList()
         self.point_list = arcade.SpriteList()
+        self.dead_checker_list = [arcade.SpriteList(), arcade.SpriteList()]
         self.selected_checker = None
         self.selected_checker_origin = None
         self.turn = None
@@ -62,7 +64,7 @@ class StefGammon(arcade.View):
         self.rolls = []
         self.used_rolls = []
         self.tick_pressed = None
-
+        self.has_dead_checker = None
         self.choose_turns_button = None
         self.dice_faces = []
         self.red_begins_button = None
@@ -70,6 +72,7 @@ class StefGammon(arcade.View):
         self.roll_again_button = None
         self.ok_button = None
         self.tick_button = None
+        self.dead_checker_count = None
 
     def setup(self):
         """ Set up the game here. Call this function to restart the game. """
@@ -86,6 +89,9 @@ class StefGammon(arcade.View):
         self.tick_button = arcade.load_texture("resources/tick_button.png")
 
         self.tick_pressed = False
+        self.dead_checker_count = [0, 0]
+        self.dead_checker_list = [[], []]
+        self.has_dead_checker = [False, False]
         POINTS_POSITIONS.reverse()
         self.set_points()
         self.set_checkers()
@@ -117,7 +123,8 @@ class StefGammon(arcade.View):
                 arcade.draw_texture_rectangle(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2, 200, 50, self.red_begins_button)
         elif self.game_state == "started":
             if self.turn == 0:
-                arcade.draw_texture_rectangle(SCREEN_WIDTH - PLAYER_STAT_WIDTH / 2, SCREEN_HEIGHT / 2, 70, 70, self.tick_button)
+                arcade.draw_texture_rectangle(SCREEN_WIDTH - PLAYER_STAT_WIDTH / 2, SCREEN_HEIGHT / 2, 70, 70,
+                                              self.tick_button)
                 sign = -1
                 not_used_rolls = list_difference(self.rolls, self.used_rolls)
                 for index, roll in enumerate(not_used_rolls):
@@ -143,7 +150,6 @@ class StefGammon(arcade.View):
                 #     PLAYER_STAT_WIDTH + BOARD_WIDTH / 4 + DICE_WIDTH / 2 + 5,
                 #     SCREEN_HEIGHT / 2, 50, 50, self.dice.get_face(self.rolls[1]))
 
-
     def on_mouse_press(self, x, y, button, key_modifiers):
         """ Called when the user presses a mouse button. """
         print("x: ", x, "\ny: ", y)
@@ -168,7 +174,7 @@ class StefGammon(arcade.View):
 
         elif self.game_state == "started":
             if len(self.used_rolls) == len(self.rolls):
-            # press on tick button at white turn
+                # press on tick button at white turn
                 if 0 <= SCREEN_WIDTH / 2 + BOARD_WIDTH / 2 + PLAYER_STAT_WIDTH / 2 + 35 - x <= 70 and 0 <= SCREEN_HEIGHT / 2 + 35 - y <= 70 and self.turn == 0:
                     self.rolls = self.dice.double_roll()
                     self.turn = 1 - self.turn
@@ -180,11 +186,19 @@ class StefGammon(arcade.View):
 
             clicked_checkers = arcade.get_sprites_at_point((x, y), self.checker_list)
             for checker in clicked_checkers:
-                self.selected_checker_origin = checker.remove(self.turn)
-                if self.selected_checker_origin:
-                    self.bring_sprite_to_front(checker)
-                    self.selected_checker = checker
-                    break
+                if checker.colorr == self.turn and checker.is_selectable:
+                    if checker.center_y == SCREEN_HEIGHT / 2:
+                        self.dead_checker_list[checker.colorr].remove(checker)
+                        if len(self.dead_checker_list[checker.colorr]) > 0:
+                            self.dead_checker_list[checker.colorr][-1].is_selectable = True
+                        self.selected_checker = checker
+                        self.selected_checker_origin = checker.position
+                    elif len(self.dead_checker_list[self.turn]) == 0:
+                        if checker.remove(self.turn):
+                            self.selected_checker_origin = checker.position
+                            self.bring_sprite_to_front(checker)
+                            self.selected_checker = checker
+                            break
 
     def on_mouse_release(self, x: float, y: float, button: int,
                          modifiers: int):
@@ -192,14 +206,38 @@ class StefGammon(arcade.View):
         if self.game_state == "started":
             if self.selected_checker is not None:
                 closest_point, dist = arcade.get_closest_sprite(self.selected_checker, self.point_list)
-                # if self.is_valid_move(self.selected_checker, closest_point):
-                placed_checker, used_roll = closest_point.add_checker(self.selected_checker, self.rolls, self.used_rolls)
+                # # if a checker dies
+                # dead_checker = closest_point.get_top_checker()
+                # if len(closest_point.checker_pile) == 1 and dead_checker.colorr == 1 - self.selected_checker.colorr:
+                #     dead_checker.position = SCREEN_WIDTH / 2 + DEAD_CHECKER_PILE_DIRECTION[
+                #         dead_checker.colorr] * (CHECKER_PILE_OFFSET * len(self.dead_checker_list[
+                #                                                                       dead_checker.colorr]) + CHECKER_RADIUS), SCREEN_HEIGHT / 2
+                #     if len(self.dead_checker_list[dead_checker.colorr]) > 0:
+                #         self.dead_checker_list[dead_checker.colorr][-1].is_selectable = False
+                #     dead_checker.point = None
+                #     self.dead_checker_list[dead_checker.colorr].append(dead_checker)
+                #     self.has_dead_checker[dead_checker.colorr] = True
+                #     closest_point.checker_pile.pop()
+                #     closest_point.checker_color = None
+
+                placed_checker, used_roll, dead_checker = closest_point.add_checker(self.selected_checker, self.rolls,
+                                                                      self.used_rolls)
                 if placed_checker:
-                    self.selected_checker.position = placed_checker.position
                     self.used_rolls.append(used_roll)
+                    if dead_checker is not None:
+                        dead_checker.position = SCREEN_WIDTH / 2 + DEAD_CHECKER_PILE_DIRECTION[
+                            dead_checker.colorr] * (CHECKER_PILE_OFFSET * len(self.dead_checker_list[
+                                                                                  dead_checker.colorr]) + CHECKER_RADIUS), SCREEN_HEIGHT / 2
+                        if len(self.dead_checker_list[dead_checker.colorr]) > 0:
+                            self.dead_checker_list[dead_checker.colorr][-1].is_selectable = False
+                        self.dead_checker_list[dead_checker.colorr].append(dead_checker)
                     self.selected_checker = None
                 else:
-                    self.selected_checker.place_back_to_origin()
+                    self.selected_checker.place_back_to_origin(self.selected_checker_origin)
+                    if self.selected_checker_origin[1] == SCREEN_HEIGHT / 2:
+                        if len(self.dead_checker_list[self.turn]) > 0:
+                            self.dead_checker_list[self.turn][-1].is_selectable = False
+                        self.dead_checker_list[self.turn].append(self.selected_checker)
                     self.selected_checker = None
 
     def on_mouse_motion(self, x: float, y: float, dx: float, dy: float):
@@ -214,7 +252,7 @@ class StefGammon(arcade.View):
         color = 1  # red
         id = 1
         for y, x in POINTS_POSITIONS:
-            point = Point(color, 25-id)
+            point = Point(color, 25 - id)
             point.position = x, y
             point.direction = 1
             self.point_list.append(point)
