@@ -31,10 +31,10 @@ class Point(arcade.Sprite):
         move_value = (self.id if checker.colorr == 0 else 25 - self.id) if checker.point is None else abs(
             checker.point.id - self.id)
 
-        if move_value not in rolls:
-            return False, None, None
-        if len(rolls) == 2 and move_value in used_rolls:
-            return False, None, None
+        # if move_value not in rolls:
+        #     return False, None, None
+        # if len(rolls) == 2 and move_value in used_rolls:
+        #     return False, None, None
 
         # if checker is in play (not dead) => verify if move is valid
         if checker.point is not None:
@@ -91,3 +91,5 @@ class Point(arcade.Sprite):
             self.checker_color = None
         self.checker_pile.remove(checker)
         return True
+
+

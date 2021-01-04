@@ -14,6 +14,8 @@ CHECKER_RADIUS = 35
 
 POINT_Y_OFFSET = 150
 POINT_X_OFFSET = 35
+BEAR_OFF_BEGIN_Y = 20
+BEAR_OFF_CHECKER_HEIGHT = 15
 POINTS_POSITIONS = [[30, 219], [30, 301], [30, 387], [30, 470], [30, 556], [30, 641],
                     [30, 737], [30, 821], [30, 905], [30, 987], [30, 1073], [30, 1160]]
 CHECKER_POSITIONS = [[70, 254], [70, 590], [70, 772], [70, 1192]]
@@ -63,8 +65,8 @@ class StefGammon(arcade.View):
         self.turn = None
         self.rolls = []
         self.used_rolls = []
+        self.checkers_in_house = None
         self.tick_pressed = None
-        self.has_dead_checker = None
         self.choose_turns_button = None
         self.dice_faces = []
         self.red_begins_button = None
@@ -73,6 +75,10 @@ class StefGammon(arcade.View):
         self.ok_button = None
         self.tick_button = None
         self.dead_checker_count = None
+        self.beared_off_white = None
+        self.beared_off_red = None
+        self.nr_of_beared_off = None
+        self.bear_off_table = None
 
     def setup(self):
         """ Set up the game here. Call this function to restart the game. """
@@ -87,11 +93,15 @@ class StefGammon(arcade.View):
         self.red_begins_button = arcade.load_texture("resources/red_begins_button.png")
         self.roll_again_button = arcade.load_texture("resources/roll_again_button.png")
         self.tick_button = arcade.load_texture("resources/tick_button.png")
+        self.beared_off_white = arcade.load_texture("resources/beared_off_white.png")
+        self.beared_off_red = arcade.load_texture("resources/beared_off_red.png")
+        self.bear_off_table = arcade.load_texture("resources/beare_off_table.png")
 
         self.tick_pressed = False
         self.dead_checker_count = [0, 0]
         self.dead_checker_list = [[], []]
-        self.has_dead_checker = [False, False]
+        self.checkers_in_house = [[], []]
+        self.nr_of_beared_off = [0,0]
         POINTS_POSITIONS.reverse()
         self.set_points()
         self.set_checkers()
@@ -107,6 +117,9 @@ class StefGammon(arcade.View):
         arcade.draw_lrwh_rectangle_textured(0, 0, 200, SCREEN_HEIGHT, self.background_left)
 
         arcade.draw_lrwh_rectangle_textured(1252, 0, 200, SCREEN_HEIGHT, self.background_right)
+        arcade.draw_texture_rectangle(SCREEN_WIDTH - PLAYER_STAT_WIDTH / 4, BEAR_OFF_BEGIN_Y - BEAR_OFF_CHECKER_HEIGHT / 2 + 287 / 2, 90, 307, self.bear_off_table)
+        arcade.draw_texture_rectangle(PLAYER_STAT_WIDTH / 4, BEAR_OFF_BEGIN_Y - BEAR_OFF_CHECKER_HEIGHT / 2 + 287 / 2, 90, 307, self.bear_off_table)
+
         self.checker_list.draw()
         if self.game_state == "before_choose_turns":
             arcade.draw_texture_rectangle(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2, 200, 50, self.choose_turns_button)
@@ -143,16 +156,15 @@ class StefGammon(arcade.View):
                         PLAYER_STAT_WIDTH + BOARD_WIDTH / 4 + offset,
                         SCREEN_HEIGHT / 2, 50, 50, self.dice.get_face(roll))
                     sign = -sign
-                # arcade.draw_texture_rectangle(
-                #     PLAYER_STAT_WIDTH + BOARD_WIDTH / 4 - DICE_WIDTH / 2 - 5,
-                #     SCREEN_HEIGHT / 2, 50, 50, self.dice.get_face(self.rolls[0]))
-                # arcade.draw_texture_rectangle(
-                #     PLAYER_STAT_WIDTH + BOARD_WIDTH / 4 + DICE_WIDTH / 2 + 5,
-                #     SCREEN_HEIGHT / 2, 50, 50, self.dice.get_face(self.rolls[1]))
+
+            for count in range(self.nr_of_beared_off[0]):
+                arcade.draw_texture_rectangle(SCREEN_WIDTH - PLAYER_STAT_WIDTH / 4, BEAR_OFF_BEGIN_Y + count * (BEAR_OFF_CHECKER_HEIGHT + 2), 70, 15, self.beared_off_white)
+            for count in range(self.nr_of_beared_off[1]):
+                arcade.draw_texture_rectangle(PLAYER_STAT_WIDTH / 4, BEAR_OFF_BEGIN_Y + count * (BEAR_OFF_CHECKER_HEIGHT + 2), 70, 15, self.beared_off_red)
+
 
     def on_mouse_press(self, x, y, button, key_modifiers):
         """ Called when the user presses a mouse button. """
-        print("x: ", x, "\ny: ", y)
         if self.game_state == "before_choose_turns":
             if SCREEN_WIDTH / 2 - 100 <= x <= SCREEN_WIDTH / 2 + 100 and SCREEN_HEIGHT / 2 - 25 <= y <= SCREEN_HEIGHT / 2 + 25:
                 self.game_state = "choosing_turns"
@@ -173,16 +185,16 @@ class StefGammon(arcade.View):
                     self.red_roll = self.dice.roll()
 
         elif self.game_state == "started":
-            if len(self.used_rolls) == len(self.rolls):
-                # press on tick button at white turn
-                if 0 <= SCREEN_WIDTH / 2 + BOARD_WIDTH / 2 + PLAYER_STAT_WIDTH / 2 + 35 - x <= 70 and 0 <= SCREEN_HEIGHT / 2 + 35 - y <= 70 and self.turn == 0:
-                    self.rolls = self.dice.double_roll()
-                    self.turn = 1 - self.turn
-                    self.used_rolls.clear()
-                if 0 <= PLAYER_STAT_WIDTH / 2 + 35 - x <= 70 and 0 <= SCREEN_HEIGHT / 2 + 35 - y <= 70 and self.turn == 1:
-                    self.rolls = self.dice.double_roll()
-                    self.turn = 1 - self.turn
-                    self.used_rolls.clear()
+            # if len(self.used_rolls) == len(self.rolls):
+            # press on tick button at white turn
+            if 0 <= SCREEN_WIDTH / 2 + BOARD_WIDTH / 2 + PLAYER_STAT_WIDTH / 2 + 35 - x <= 70 and 0 <= SCREEN_HEIGHT / 2 + 35 - y <= 70 and self.turn == 0:
+                self.rolls = self.dice.double_roll()
+                self.turn = 1 - self.turn
+                self.used_rolls.clear()
+            if 0 <= PLAYER_STAT_WIDTH / 2 + 35 - x <= 70 and 0 <= SCREEN_HEIGHT / 2 + 35 - y <= 70 and self.turn == 1:
+                self.rolls = self.dice.double_roll()
+                self.turn = 1 - self.turn
+                self.used_rolls.clear()
 
             clicked_checkers = arcade.get_sprites_at_point((x, y), self.checker_list)
             for checker in clicked_checkers:
@@ -205,40 +217,33 @@ class StefGammon(arcade.View):
         """ Called when the user presses a mouse button. """
         if self.game_state == "started":
             if self.selected_checker is not None:
-                closest_point, dist = arcade.get_closest_sprite(self.selected_checker, self.point_list)
-                # # if a checker dies
-                # dead_checker = closest_point.get_top_checker()
-                # if len(closest_point.checker_pile) == 1 and dead_checker.colorr == 1 - self.selected_checker.colorr:
-                #     dead_checker.position = SCREEN_WIDTH / 2 + DEAD_CHECKER_PILE_DIRECTION[
-                #         dead_checker.colorr] * (CHECKER_PILE_OFFSET * len(self.dead_checker_list[
-                #                                                                       dead_checker.colorr]) + CHECKER_RADIUS), SCREEN_HEIGHT / 2
-                #     if len(self.dead_checker_list[dead_checker.colorr]) > 0:
-                #         self.dead_checker_list[dead_checker.colorr][-1].is_selectable = False
-                #     dead_checker.point = None
-                #     self.dead_checker_list[dead_checker.colorr].append(dead_checker)
-                #     self.has_dead_checker[dead_checker.colorr] = True
-                #     closest_point.checker_pile.pop()
-                #     closest_point.checker_color = None
+                if x > SCREEN_WIDTH - PLAYER_STAT_WIDTH and self.ready_for_bearoff(self.turn):
+                    self.checker_list.remove(self.selected_checker)
+                    self.selected_checker = None
+                    self.nr_of_beared_off[self.turn] += 1
 
-                placed_checker, used_roll, dead_checker = closest_point.add_checker(self.selected_checker, self.rolls,
-                                                                      self.used_rolls)
-                if placed_checker:
-                    self.used_rolls.append(used_roll)
-                    if dead_checker is not None:
-                        dead_checker.position = SCREEN_WIDTH / 2 + DEAD_CHECKER_PILE_DIRECTION[
-                            dead_checker.colorr] * (CHECKER_PILE_OFFSET * len(self.dead_checker_list[
-                                                                                  dead_checker.colorr]) + CHECKER_RADIUS), SCREEN_HEIGHT / 2
-                        if len(self.dead_checker_list[dead_checker.colorr]) > 0:
-                            self.dead_checker_list[dead_checker.colorr][-1].is_selectable = False
-                        self.dead_checker_list[dead_checker.colorr].append(dead_checker)
-                    self.selected_checker = None
                 else:
-                    self.selected_checker.place_back_to_origin(self.selected_checker_origin)
-                    if self.selected_checker_origin[1] == SCREEN_HEIGHT / 2:
-                        if len(self.dead_checker_list[self.turn]) > 0:
-                            self.dead_checker_list[self.turn][-1].is_selectable = False
-                        self.dead_checker_list[self.turn].append(self.selected_checker)
-                    self.selected_checker = None
+
+                    closest_point, dist = arcade.get_closest_sprite(self.selected_checker, self.point_list)
+                    placed_checker, used_roll, dead_checker = closest_point.add_checker(self.selected_checker, self.rolls,
+                                                                          self.used_rolls)
+                    if placed_checker:
+                        self.used_rolls.append(used_roll)
+                        if dead_checker is not None:
+                            dead_checker.position = SCREEN_WIDTH / 2 + DEAD_CHECKER_PILE_DIRECTION[
+                                dead_checker.colorr] * (CHECKER_PILE_OFFSET * len(self.dead_checker_list[
+                                                                                      dead_checker.colorr]) + CHECKER_RADIUS), SCREEN_HEIGHT / 2
+                            if len(self.dead_checker_list[dead_checker.colorr]) > 0:
+                                self.dead_checker_list[dead_checker.colorr][-1].is_selectable = False
+                            self.dead_checker_list[dead_checker.colorr].append(dead_checker)
+                        self.selected_checker = None
+                    else:
+                        self.selected_checker.place_back_to_origin(self.selected_checker_origin)
+                        if self.selected_checker_origin[1] == SCREEN_HEIGHT / 2:
+                            if len(self.dead_checker_list[self.turn]) > 0:
+                                self.dead_checker_list[self.turn][-1].is_selectable = False
+                            self.dead_checker_list[self.turn].append(self.selected_checker)
+                        self.selected_checker = None
 
     def on_mouse_motion(self, x: float, y: float, dx: float, dy: float):
         """ User moves mouse """
@@ -291,12 +296,16 @@ class StefGammon(arcade.View):
             self.checker_list.append(sprite)
             self.checker_list.draw()
 
-    def checker_moved_forward(self, checker, point):
-        pass
-
-    def is_valid_move(self, checker, point):
-        if not checker.is_selectable:
-            return 'not_selectable'
+    def ready_for_bearoff(self, player):
+        if player == 0:
+            for checker in self.checker_list:
+                if checker.colorr == player and (checker.point is None or checker.point.id <= 18):
+                    return False
+        else:
+            for checker in self.checker_list:
+                if checker.colorr == player and (checker.point is None or checker.point.id > 6):
+                    return False
+        return True
 
 
 def main():

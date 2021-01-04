@@ -46,3 +46,5 @@ class Checker(arcade.Sprite):
             self.position = origin
             # add it back to point checker pile
             self.point.checker_pile.append(self)
+
+
