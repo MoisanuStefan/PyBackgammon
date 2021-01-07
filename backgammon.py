@@ -14,6 +14,8 @@ BOARD_WIDTH = 1052
 PLAYER_STAT_WIDTH = (SCREEN_WIDTH - BOARD_WIDTH) / 2
 SCREEN_TITLE = "StefGammon"
 CHECKER_RADIUS = 35
+CHECKER_SPEED = 10
+FIRST_CHECKER_Y = [SCREEN_HEIGHT - 70, None, 70]
 
 POINT_Y_OFFSET = 150
 POINT_X_OFFSET = 35
@@ -88,6 +90,9 @@ class StefGammon(arcade.View):
         self.selected_checker_destination = None
         self.last_x_distance = 10000
         self.animation_checker = None
+        self.checker_state = None
+        self.dead_checker_origin = None
+
 
     def setup(self):
         """ Set up the game here. Call this function to restart the game. """
@@ -114,6 +119,9 @@ class StefGammon(arcade.View):
         self.set_points()
         self.set_checkers()
         self.animation_iteration = 0
+        self.selected_checker_destination = None
+        self.checker_state = None
+        self.dead_checker_origin = None
 
         # right side elements
         # button = MyFlatButton('choose_turns', 'Choose Turns', 726, 376, 250, self.game, self.ui_manager)
@@ -177,7 +185,9 @@ class StefGammon(arcade.View):
                                               self.beared_off_red)
 
     def on_update(self, delta_time):
-        if self.is_cpu_game and self.turn == 1 and self.animation_checker is None:
+
+        if self.is_cpu_game and self.turn == 1 and self.selected_checker_destination is None:
+            sleep(2)
             if len(self.rolls) != len(self.used_rolls):
                 roll = self.extract_random_roll(list_difference(self.rolls, self.used_rolls))
                 checker_index = random.randint(0, 33)
@@ -189,55 +199,51 @@ class StefGammon(arcade.View):
                             if self.is_valid_move(random_checker, destination_point, self.rolls,
                                                   self.used_rolls):
                                 self.set_selected_checker(random_checker)
-                                self.animation_checker = self.selected_checker
-                                self.selected_checker_destination = self.place_selected_checker(destination_point)
+                                self.selected_checker_origin = self.selected_checker.position
+                                self.selected_checker_destination = destination_point.get_checker_destination(self.selected_checker)
+                                self.used_rolls.append(roll)
                                 break
                     checker_index += 1
             else:
+                self.rolls = self.dice.double_roll()
                 self.turn = 1 - self.turn
-
+                self.used_rolls.clear()
 
             ########################################
             # cpu resurrect
             # cpu bear off
-        if self.animation_checker:
+        if self.selected_checker_destination is not None:
             # if abs(self.selected_checker_destination[0] - self.animation_checker.center_x) < self.last_x_distance:
-            if self.animation_iteration < 200:
+            if self.animation_iteration < CHECKER_SPEED:
                 # self.last_x_distance = abs(self.animation_checker.center_x - self.selected_checker_destination[0])
-                self.animation_checker.center_x += (self.selected_checker_destination[0] - self.animation_checker.position[0]) / 200
-                self.animation_checker.center_y += (self.selected_checker_destination[1] - self.animation_checker.position[1]) / 200
+                self.selected_checker.center_x += (self.selected_checker_destination[0] -
+                                                   self.selected_checker_origin[0]) / CHECKER_SPEED
+                self.selected_checker.center_y += (self.selected_checker_destination[1] -
+                                                   self.selected_checker_origin[1]) / CHECKER_SPEED
                 self.animation_iteration += 1
+
             else:
-                self.animation_checker.position = self.selected_checker_destination
+                self.place_selected_checker()
+                self.selected_checker.position = self.selected_checker_destination
                 self.animation_iteration = 0
-                self.animation_checker = None
+                self.selected_checker = None
+                self.selected_checker_destination = None
+
 
     def set_selected_checker(self, checker):
+        self.bring_sprite_to_front(checker)
         if checker.is_dead:
-            self.bring_sprite_to_front(checker)
             self.dead_checker_list[checker.colorr].remove(checker)
             if len(self.dead_checker_list[checker.colorr]) > 0:
                 self.dead_checker_list[checker.colorr][-1].is_selectable = True
+            self.dead_checker_origin = checker.position
             self.selected_checker = checker
-            self.selected_checker_origin = checker.position
-        elif len(self.dead_checker_list[self.turn]) == 0 and checker.is_selectable or checker.colorr == self.turn:
+
+        elif len(self.dead_checker_list[self.turn]) == 0:
             checker.remove()
-            self.selected_checker_origin = checker.position
-            self.bring_sprite_to_front(checker)
             self.selected_checker = checker
 
-    def extract_random_roll(self, rolls):
-        rand_index = random.randint(0, len(rolls) - 1)
-        temp = rolls[rand_index]
-        rolls.remove(rolls[rand_index])
-        return temp
 
-    def get_point_by_id(self, idd):
-        if idd < 1 or idd > 25:
-            return None
-        for point in self.point_list:
-            if point.id == idd:
-                return point
 
     def on_mouse_press(self, x, y, button, key_modifiers):
         """ Called when the user presses a mouse button. """
@@ -282,8 +288,9 @@ class StefGammon(arcade.View):
                     if self.selected_checker:
                         break
 
-    def place_selected_checker(self, destination_point):
-        if self.is_valid_move(self.selected_checker, destination_point, self.rolls, self.used_rolls):
+    def place_selected_checker(self):
+        if self.checker_state == "valid_move":
+            destination_point, dist = arcade.get_closest_sprite(self.selected_checker, self.point_list)
             placed_checker, used_roll, dead_checker = destination_point.add_checker(self.selected_checker)
             self.used_rolls.append(used_roll)
             if dead_checker is not None:
@@ -291,35 +298,56 @@ class StefGammon(arcade.View):
                 dead_checker.position = SCREEN_WIDTH / 2 + DEAD_CHECKER_PILE_DIRECTION[
                     dead_checker.colorr] * (BOARD_WIDTH / 2 + PLAYER_STAT_WIDTH / 4), CHECKER_RADIUS + 5 + 50 * len(
                     self.dead_checker_list[dead_checker.colorr])
-                # dead_checker.position = SCREEN_WIDTH / 2 + DEAD_CHECKER_PILE_DIRECTION[
-                #     dead_checker.colorr] * (CHECKER_PILE_OFFSET * len(self.dead_checker_list[
-                #                                                           dead_checker.colorr]) + CHECKER_RADIUS), SCREEN_HEIGHT / 2
                 if len(self.dead_checker_list[dead_checker.colorr]) > 0:
                     self.dead_checker_list[dead_checker.colorr][-1].is_selectable = False
                 self.dead_checker_list[dead_checker.colorr].append(dead_checker)
-            self.selected_checker = None
-            return placed_checker.position
+
+        elif self.checker_state == "missplaced":
+            self.selected_checker.place_back_to_origin(self.dead_checker_list)
+        elif self.checker_state == "bear_off":
+            self.checker_list.remove(self.selected_checker)
+            self.nr_of_beared_off[self.turn] += 1
+
+
+    def get_bear_of_destination(self):
+        position = []
+        if self.turn == 0:
+            position.append(SCREEN_WIDTH - PLAYER_STAT_WIDTH / 4)
         else:
-            self.selected_checker.place_back_to_origin(self.selected_checker_origin)
-            if self.selected_checker.is_dead:
-                if len(self.dead_checker_list[self.turn]) > 0:
-                    self.dead_checker_list[self.turn][-1].is_selectable = False
-                self.dead_checker_list[self.turn].append(self.selected_checker)
-            self.selected_checker = None
+            position.append(PLAYER_STAT_WIDTH / 4)
+        position.append(BEAR_OFF_BEGIN_Y + self.nr_of_beared_off[self.turn] * (BEAR_OFF_CHECKER_HEIGHT + 2))
+        return position
 
     def on_mouse_release(self, x: float, y: float, button: int,
                          modifiers: int):
         """ Called when the user presses a mouse button. """
         if self.game_state == "started":
             if self.selected_checker is not None:
-                if x > SCREEN_WIDTH - PLAYER_STAT_WIDTH and self.ready_for_bearoff(self.turn):
-                    self.checker_list.remove(self.selected_checker)
-                    self.selected_checker = None
-                    self.nr_of_beared_off[self.turn] += 1
+                if x > SCREEN_WIDTH - PLAYER_STAT_WIDTH and self.ready_for_bearoff(0) or x < PLAYER_STAT_WIDTH and self.ready_for_bearoff(1):
+                    self.checker_state = "bear_off"
+                    self.selected_checker_origin = x, y
+                    self.selected_checker_destination = self.get_bear_of_destination()
 
                 else:
                     closest_point, dist = arcade.get_closest_sprite(self.selected_checker, self.point_list)
-                    self.place_selected_checker(closest_point)
+                    if self.is_valid_move(self.selected_checker, closest_point, self.rolls, self.used_rolls):
+                        closest_point.prepare_pile()
+                        self.selected_checker_origin = x,y
+                        self.selected_checker_destination = closest_point.get_checker_destination(self.selected_checker)
+                        self.checker_state = "valid_move"
+                    # wrong move -> checker must be put back
+                    else:
+                        # checker is in play
+                        if self.selected_checker.point is not None:
+                            self.selected_checker.point.prepare_pile()
+                            self.selected_checker_destination = self.selected_checker.point.get_checker_destination(self.selected_checker)
+                            self.selected_checker_origin = x, y
+                            self.checker_state = "missplaced"
+                        # checker is dead
+                        else:
+                            self.selected_checker_destination = self.dead_checker_origin
+                            self.selected_checker_origin = x, y
+                            self.checker_state = "missplaced"
 
     def is_valid_move(self, checker, point, rolls, used_rolls):
         move_value = (point.id if checker.colorr == 0 else 25 - point.id) if checker.point is None else abs(
@@ -347,7 +375,7 @@ class StefGammon(arcade.View):
     def on_mouse_motion(self, x: float, y: float, dx: float, dy: float):
         """ User moves mouse """
         if self.game_state == "started":
-            if self.selected_checker is not None:
+            if self.selected_checker is not None and self.selected_checker_destination is None:
                 self.selected_checker.center_x += dx
                 self.selected_checker.center_y += dy
 
@@ -405,6 +433,19 @@ class StefGammon(arcade.View):
                 if checker.colorr == player and (checker.point is None or checker.point.id > 6):
                     return False
         return True
+
+    def extract_random_roll(self, rolls):
+        rand_index = random.randint(0, len(rolls) - 1)
+        temp = rolls[rand_index]
+        rolls.remove(rolls[rand_index])
+        return temp
+
+    def get_point_by_id(self, idd):
+        if idd < 1 or idd > 25:
+            return None
+        for point in self.point_list:
+            if point.id == idd:
+                return point
 
 
 class MenuView(arcade.View):

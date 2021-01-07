@@ -50,6 +50,7 @@ class Point(arcade.Sprite):
         #     if move_value > 6:
         #         return False, None, None
 
+        # if a checker gets killed
         if len(self.checker_pile) == 1 and self.checker_pile[0].colorr != checker.colorr:
             dead_checker = self.get_top_checker()
             dead_checker.point = None
@@ -60,7 +61,7 @@ class Point(arcade.Sprite):
         # if checker moved to empty pile
         if self.checker_color is None:
             self.checker_color = checker.colorr
-            checker.position = self.center_x, FIRST_CHECKER_Y[self.direction + 1]
+            # checker.position = self.center_x, FIRST_CHECKER_Y[self.direction + 1]
             checker.set_point(self)
             self.checker_pile.append(checker)
             checker.is_dead = False
@@ -70,11 +71,6 @@ class Point(arcade.Sprite):
             top_checker = self.get_top_checker()
             top_checker.is_selectable = False
             self.checker_pile.append(checker)
-            # put new top checker in place and rearrange according to pile size
-            for index, checker in enumerate(self.checker_pile):
-                checker.position = self.center_x, FIRST_CHECKER_Y[self.direction + 1] + self.direction * index * \
-                                   CHECKER_PILE_OFFSET[len(self.checker_pile)]
-
             checker.set_point(self)
             checker.is_dead = False
 
@@ -88,4 +84,18 @@ class Point(arcade.Sprite):
         else:  # pile will be empty
             self.checker_color = None
         self.checker_pile.remove(checker)
+
+    def get_checker_destination(self, checker):
+        # checker will be placed on empty point (initially or after it kills opponent checker)
+        if self.checker_color is None or checker.colorr is not self.checker_color:
+            position = self.center_x, FIRST_CHECKER_Y[self.direction + 1]
+        else:
+            position = list(self.get_top_checker().position)
+            position[1] += self.direction * CHECKER_PILE_OFFSET[len(self.checker_pile) + 1]
+        return position
+
+    def prepare_pile(self):
+        for index, checker in enumerate(self.checker_pile):
+            checker.position = self.center_x, FIRST_CHECKER_Y[self.direction + 1] + self.direction * index * \
+                               CHECKER_PILE_OFFSET[len(self.checker_pile) + 1]
 

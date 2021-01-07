@@ -33,19 +33,17 @@ class Checker(arcade.Sprite):
     def add(self, rolls, used_rolls):
         return self.point.add_checker(self, rolls, used_rolls)
 
-    def place_back_to_origin(self, origin):
+    def place_back_to_origin(self, dead_checker_list):
         # if checker is dead
-        if self.is_dead:
-            self.position = origin
-        # if checker is in alive
-        else:
+        if not self.is_dead:
             # get top checker and make it unselectable
             top_checker = self.point.get_top_checker()
             if top_checker:
                 top_checker.is_selectable = False
-                # put new top checker in place
-            self.position = origin
             # add it back to point checker pile
             self.point.checker_pile.append(self)
-
+        else:
+            if len(dead_checker_list[self.colorr]) > 0:
+                dead_checker_list[self.colorr][-1].is_selectable = False
+            dead_checker_list[self.colorr].append(self)
 
