@@ -93,7 +93,6 @@ class StefGammon(arcade.View):
         self.checker_state = None
         self.dead_checker_origin = None
 
-
     def setup(self):
         """ Set up the game here. Call this function to restart the game. """
         self.background_image = arcade.load_texture("resources/sg_board.png")
@@ -187,23 +186,49 @@ class StefGammon(arcade.View):
     def on_update(self, delta_time):
 
         if self.is_cpu_game and self.turn == 1 and self.selected_checker_destination is None:
-            sleep(2)
             if len(self.rolls) != len(self.used_rolls):
-                roll = self.extract_random_roll(list_difference(self.rolls, self.used_rolls))
-                checker_index = random.randint(0, 33)
+                sleep(2)
+                roll_index = random.randint(0, len(self.rolls) - 1)
+                avalable_rolls = list_difference(self.rolls, self.used_rolls)
                 while True:
-                    random_checker = self.checker_list[checker_index % 34]
-                    if random_checker.colorr == 1 and random_checker.is_selectable:
-                        destination_point = self.get_point_by_id(random_checker.point.id - roll)
-                        if destination_point:
-                            if self.is_valid_move(random_checker, destination_point, self.rolls,
-                                                  self.used_rolls):
-                                self.set_selected_checker(random_checker)
-                                self.selected_checker_origin = self.selected_checker.position
-                                self.selected_checker_destination = destination_point.get_checker_destination(self.selected_checker)
-                                self.used_rolls.append(roll)
-                                break
-                    checker_index += 1
+                    # roll = self.extract_random_roll(list_difference(self.rolls, self.used_rolls))
+                    roll = avalable_rolls[roll_index % len(avalable_rolls)]
+                    if len(self.dead_checker_list[1]) == 0:
+                        checker_index = random.randint(0, 33)
+                        while True:
+                            random_checker = self.checker_list[checker_index % 34]
+                            if random_checker.colorr == 1 and random_checker.is_selectable:
+                                destination_point = self.get_point_by_id(random_checker.point.id - roll)
+                                if destination_point:
+                                    if self.is_valid_move(random_checker, destination_point, self.rolls,
+                                                          self.used_rolls):
+                                        self.set_selected_checker(random_checker)
+                                        destination_point.prepare_pile()
+                                        self.selected_checker_origin = self.selected_checker.position
+                                        self.selected_checker_destination = destination_point.get_checker_destination(
+                                            self.selected_checker)
+                                        self.checker_state = "valid_move"
+                                        break
+                            checker_index += 1
+                        if self.selected_checker_destination:
+                            break
+                    # cpu has to revive dead checkers
+                    else:
+                        for checker in self.dead_checker_list[1]:
+                            if checker.is_selectable:
+                                destination_point = self.get_point_by_id(25 - roll)
+                                if self.is_valid_move(checker, destination_point, self.rolls, self.used_rolls):
+                                    self.set_selected_checker(checker)
+                                    destination_point.prepare_pile()
+                                    self.selected_checker_origin = self.selected_checker.position
+                                    self.selected_checker_destination = destination_point.get_checker_destination(
+                                        self.selected_checker)
+                                    self.checker_state = "valid_move"
+                                    break
+                        if self.selected_checker_destination:
+                            break
+                    roll_index += 1
+
             else:
                 self.rolls = self.dice.double_roll()
                 self.turn = 1 - self.turn
@@ -214,6 +239,7 @@ class StefGammon(arcade.View):
             # cpu bear off
         if self.selected_checker_destination is not None:
             # if abs(self.selected_checker_destination[0] - self.animation_checker.center_x) < self.last_x_distance:
+            # speed = 70 if self.turn == 1 and self.is_cpu_game else 10
             if self.animation_iteration < CHECKER_SPEED:
                 # self.last_x_distance = abs(self.animation_checker.center_x - self.selected_checker_destination[0])
                 self.selected_checker.center_x += (self.selected_checker_destination[0] -
@@ -229,7 +255,6 @@ class StefGammon(arcade.View):
                 self.selected_checker = None
                 self.selected_checker_destination = None
 
-
     def set_selected_checker(self, checker):
         self.bring_sprite_to_front(checker)
         if checker.is_dead:
@@ -242,8 +267,6 @@ class StefGammon(arcade.View):
         elif len(self.dead_checker_list[self.turn]) == 0:
             checker.remove()
             self.selected_checker = checker
-
-
 
     def on_mouse_press(self, x, y, button, key_modifiers):
         """ Called when the user presses a mouse button. """
@@ -269,17 +292,17 @@ class StefGammon(arcade.View):
                     self.red_roll = self.dice.roll()
 
         elif self.game_state == "started":
-            if len(self.used_rolls) == len(self.rolls):
-                # press on tick button at white turn
-                if 0 <= SCREEN_WIDTH / 2 + BOARD_WIDTH / 2 + PLAYER_STAT_WIDTH / 2 + 35 - x <= 70 and 0 <= SCREEN_HEIGHT / 2 + 35 - y <= 70 and self.turn == 0:
-                    self.rolls = self.dice.double_roll()
-                    self.used_rolls.clear()
-                    self.turn = 1 - self.turn
+            # if len(self.used_rolls) == len(self.rolls):
+            # press on tick button at white turn
+            if 0 <= SCREEN_WIDTH / 2 + BOARD_WIDTH / 2 + PLAYER_STAT_WIDTH / 2 + 35 - x <= 70 and 0 <= SCREEN_HEIGHT / 2 + 35 - y <= 70 and self.turn == 0:
+                self.rolls = self.dice.double_roll()
+                self.used_rolls.clear()
+                self.turn = 1 - self.turn
 
-                if 0 <= PLAYER_STAT_WIDTH / 2 + 35 - x <= 70 and 0 <= SCREEN_HEIGHT / 2 + 35 - y <= 70 and self.turn == 1 and not self.is_cpu_game:
-                    self.rolls = self.dice.double_roll()
-                    self.turn = 1 - self.turn
-                    self.used_rolls.clear()
+            if 0 <= PLAYER_STAT_WIDTH / 2 + 35 - x <= 70 and 0 <= SCREEN_HEIGHT / 2 + 35 - y <= 70 and self.turn == 1 and not self.is_cpu_game:
+                self.rolls = self.dice.double_roll()
+                self.turn = 1 - self.turn
+                self.used_rolls.clear()
 
             clicked_checkers = arcade.get_sprites_at_point((x, y), self.checker_list)
             for checker in clicked_checkers:
@@ -308,7 +331,6 @@ class StefGammon(arcade.View):
             self.checker_list.remove(self.selected_checker)
             self.nr_of_beared_off[self.turn] += 1
 
-
     def get_bear_of_destination(self):
         position = []
         if self.turn == 0:
@@ -322,8 +344,9 @@ class StefGammon(arcade.View):
                          modifiers: int):
         """ Called when the user presses a mouse button. """
         if self.game_state == "started":
-            if self.selected_checker is not None:
-                if x > SCREEN_WIDTH - PLAYER_STAT_WIDTH and self.ready_for_bearoff(0) or x < PLAYER_STAT_WIDTH and self.ready_for_bearoff(1):
+            if self.selected_checker is not None and self.selected_checker_destination is None:
+                if x > SCREEN_WIDTH - PLAYER_STAT_WIDTH and self.ready_for_bearoff(
+                        0) or x < PLAYER_STAT_WIDTH and self.ready_for_bearoff(1):
                     self.checker_state = "bear_off"
                     self.selected_checker_origin = x, y
                     self.selected_checker_destination = self.get_bear_of_destination()
@@ -332,7 +355,7 @@ class StefGammon(arcade.View):
                     closest_point, dist = arcade.get_closest_sprite(self.selected_checker, self.point_list)
                     if self.is_valid_move(self.selected_checker, closest_point, self.rolls, self.used_rolls):
                         closest_point.prepare_pile()
-                        self.selected_checker_origin = x,y
+                        self.selected_checker_origin = x, y
                         self.selected_checker_destination = closest_point.get_checker_destination(self.selected_checker)
                         self.checker_state = "valid_move"
                     # wrong move -> checker must be put back
@@ -340,7 +363,8 @@ class StefGammon(arcade.View):
                         # checker is in play
                         if self.selected_checker.point is not None:
                             self.selected_checker.point.prepare_pile()
-                            self.selected_checker_destination = self.selected_checker.point.get_checker_destination(self.selected_checker)
+                            self.selected_checker_destination = self.selected_checker.point.get_checker_destination(
+                                self.selected_checker)
                             self.selected_checker_origin = x, y
                             self.checker_state = "missplaced"
                         # checker is dead
@@ -352,14 +376,14 @@ class StefGammon(arcade.View):
     def is_valid_move(self, checker, point, rolls, used_rolls):
         move_value = (point.id if checker.colorr == 0 else 25 - point.id) if checker.point is None else abs(
             checker.point.id - point.id)
-
-        if move_value not in rolls:
-            return False
-        if len(rolls) == 2 and move_value in used_rolls:
-            return False
+        if self.turn == 1:
+            if move_value not in rolls:
+                return False
+            if len(rolls) == 2 and move_value in used_rolls:
+                return False
         if len(point.checker_pile) > 1 and checker.colorr == 1 - point.checker_color:
             return False
-        # if checker is in play (not dead) => verify if move is valid
+        # if checker is in play (not dead) => verify if move direction is valid
         if checker.point is not None:
             if checker.colorr == 0 and point.id - checker.point.id < 0:
                 return False
