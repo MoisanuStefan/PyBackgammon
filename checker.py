@@ -17,6 +17,7 @@ class Checker(arcade.Sprite):
         if color == 0:
             super().__init__(WHITE_CHECKER, scale=scale)
         self.is_selectable = False
+        self.is_dead = False
         self.colorr = color
         self.point = None
 
@@ -26,15 +27,15 @@ class Checker(arcade.Sprite):
     def get_point(self):
         return self.point
 
-    def remove(self, turn):
-        return self.point.remove_checker(self, turn)
+    def remove(self):
+        return self.point.remove_checker(self)
 
     def add(self, rolls, used_rolls):
         return self.point.add_checker(self, rolls, used_rolls)
 
     def place_back_to_origin(self, origin):
         # if checker is dead
-        if origin[1] == SCREEN_HEIGHT / 2:
+        if self.is_dead:
             self.position = origin
         # if checker is in alive
         else:
