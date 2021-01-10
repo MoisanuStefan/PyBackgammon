@@ -9,8 +9,22 @@ CHECKER_RADIUS = 40
 SCREEN_HEIGHT = 753
 
 
-
 class Checker(arcade.Sprite):
+    """
+    Checker is a sprite that represents the pieces used to play with
+
+    ...
+    Attributes
+    ----------
+    place_back_to_origin()
+
+
+
+    Methods
+    ----------
+    place_back_to_origin()
+        Puts checker back if user moves it to an invalid destination
+         """
     def __init__(self, color, scale):
         if color == 1:
             super().__init__(RED_CHECKER, scale=scale)
@@ -34,6 +48,7 @@ class Checker(arcade.Sprite):
         return self.point.add_checker(self, rolls, used_rolls)
 
     def place_back_to_origin(self, dead_checker_list):
+        """Puts checker back if user moves it to an invalid destination"""
         # if checker is dead
         if not self.is_dead:
             # get top checker and make it unselectable
@@ -46,4 +61,3 @@ class Checker(arcade.Sprite):
             if len(dead_checker_list[self.colorr]) > 0:
                 dead_checker_list[self.colorr][-1].is_selectable = False
             dead_checker_list[self.colorr].append(self)
-
