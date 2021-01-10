@@ -3,7 +3,7 @@ import arcade
 GRAY = "resources/gray_point.png"
 BLACK = "resources/black_point.png"
 
-CHECKER_PILE_OFFSET = [None, 60, 60, 60, 60, 50, 45, 40, 35, 30, 25, 25, 25, 25, 25, 25, 25, 25]
+CHECKER_PILE_OFFSET = [60, 60, 60, 60, 60, 50, 45, 40, 35, 30, 25, 25, 25, 25, 25, 25, 25, 25]
 SCREEN_HEIGHT = 753
 
 FIRST_CHECKER_Y = [SCREEN_HEIGHT - 70, None, 70]
@@ -94,8 +94,9 @@ class Point(arcade.Sprite):
             position[1] += self.direction * CHECKER_PILE_OFFSET[len(self.checker_pile) + 1]
         return position
 
-    def prepare_pile(self):
+    def arrange_pile(self, for_what):
+        checker_count = len(self.checker_pile) + 1 if for_what == "add" else len(self.checker_pile) - 1
         for index, checker in enumerate(self.checker_pile):
             checker.position = self.center_x, FIRST_CHECKER_Y[self.direction + 1] + self.direction * index * \
-                               CHECKER_PILE_OFFSET[len(self.checker_pile) + 1]
+                               CHECKER_PILE_OFFSET[checker_count]
 

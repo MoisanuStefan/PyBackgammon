@@ -14,7 +14,7 @@ BOARD_WIDTH = 1052
 PLAYER_STAT_WIDTH = (SCREEN_WIDTH - BOARD_WIDTH) / 2
 SCREEN_TITLE = "StefGammon"
 CHECKER_RADIUS = 35
-CHECKER_SPEED = 10
+CHECKER_SPEED = 2
 FIRST_CHECKER_Y = [SCREEN_HEIGHT - 70, None, 70]
 
 BEAR_OFF_BEGIN_Y = 20
@@ -28,6 +28,7 @@ CHECKER_PILES = (6, 3, 6, 2)
 CHECKER_PILE_OFFSET = [0, 60, 60, 60, 60, 50, 45, 40, 35, 30, 25]
 
 DEAD_CHECKER_PILE_DIRECTION = [1, -1]
+BOTTOM_MSG_TIME = 100
 
 
 def list_difference(li1, li2):
@@ -43,7 +44,7 @@ def list_difference(li1, li2):
 
 # to do: set points in their position, set checkers in position
 class StefGammon(arcade.View):
-    def __init__(self, is_cpu_game):
+    def __init__(self, is_cpu_game, red_avatar, white_avatar):
         super().__init__()
         self.animation_iteration = None
         self.is_cpu_game = is_cpu_game
@@ -81,6 +82,11 @@ class StefGammon(arcade.View):
         self.winner = None
         self.player_can_move = None
         self.score = [0, 0]
+        self.bottom_message = None
+        self.bottom_message_time = None
+        self.red_avatar = red_avatar
+        self.white_avatar = white_avatar
+
 
     def setup(self):
         """ Set up the game here. Call this function to restart the game. """
@@ -119,6 +125,11 @@ class StefGammon(arcade.View):
         self.selected_checker = None
         self.game_state = "before_choose_turns"
         self.player_can_move = True
+        self.bottom_message = ""
+        self.bottom_message_time = 0
+
+        self.red_avatar.center_y = SCREEN_HEIGHT - 100
+        self.white_avatar.center_y = SCREEN_HEIGHT - 100
 
         # right side elements
         # button = MyFlatButton('choose_turns', 'Choose Turns', 726, 376, 250, self.game, self.ui_manager)
@@ -138,10 +149,12 @@ class StefGammon(arcade.View):
                                       self.bear_off_table)
         arcade.draw_texture_rectangle(PLAYER_STAT_WIDTH / 4, BEAR_OFF_BEGIN_Y - BEAR_OFF_CHECKER_HEIGHT / 2 + 287 / 2,
                                       90, 307, self.bear_off_table)
-        arcade.draw_text(str(self.score[0]), SCREEN_WIDTH - PLAYER_STAT_WIDTH / 2, 500, arcade.color.WHITE_SMOKE,
+        arcade.draw_text(str(self.score[0]), SCREEN_WIDTH - PLAYER_STAT_WIDTH / 2, 480, arcade.color.WHITE_SMOKE,
                          anchor_x="center", anchor_y="center", font_size=40)
-        arcade.draw_text(str(self.score[1]), PLAYER_STAT_WIDTH / 2, 500, arcade.color.WHITE, anchor_x="center",
+        arcade.draw_text(str(self.score[1]), PLAYER_STAT_WIDTH / 2, 480, arcade.color.WHITE, anchor_x="center",
                          anchor_y="center", font_size=40)
+        self.red_avatar.draw()
+        self.white_avatar.draw()
 
         self.checker_list.draw()
         if self.game_state == "before_choose_turns":
@@ -157,7 +170,7 @@ class StefGammon(arcade.View):
                 arcade.draw_texture_rectangle(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2, 200, 50, self.white_begins_button)
             else:
                 arcade.draw_texture_rectangle(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2, 200, 50, self.red_begins_button)
-        elif self.game_state == "started" or self.game_state == "over":
+        elif self.game_state == "started":
             if self.turn == 0:
                 arcade.draw_texture_rectangle(SCREEN_WIDTH - PLAYER_STAT_WIDTH / 2, SCREEN_HEIGHT / 2, 70, 70,
                                               self.tick_button)
@@ -185,7 +198,14 @@ class StefGammon(arcade.View):
                 arcade.draw_texture_rectangle(PLAYER_STAT_WIDTH / 4,
                                               BEAR_OFF_BEGIN_Y + count * (BEAR_OFF_CHECKER_HEIGHT + 2), 70, 15,
                                               self.beared_off_red)
-            if self.winner:
+
+            if self.bottom_message_time > 0:
+                arcade.draw_text(self.bottom_message, SCREEN_WIDTH / 2, 17, color=arcade.color.WHITE, font_size=20,
+                                 anchor_x="center",
+                                 anchor_y="center")
+                self.bottom_message_time -= 1
+
+            if self.winner is not None:
                 arcade.draw_texture_rectangle(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2 + 27, 200, 50, self.play_again)
                 arcade.draw_texture_rectangle(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2 - 27, 200, 50, self.main_menu)
                 if self.winner == 1:
@@ -202,7 +222,7 @@ class StefGammon(arcade.View):
     def on_update(self, delta_time):
         if self.is_cpu_game and self.turn == 1 and self.selected_checker_destination is None:
             if len(self.rolls) != len(self.used_rolls):
-                sleep(1)
+                # sleep(2)
                 roll_index = random.randint(0, len(self.rolls) - 1)
                 avalable_rolls = list_difference(self.rolls, self.used_rolls)
                 while True:
@@ -231,7 +251,7 @@ class StefGammon(arcade.View):
                                         if self.is_valid_move(random_checker, destination_point, self.rolls,
                                                               self.used_rolls):
                                             self.set_selected_checker(random_checker)
-                                            destination_point.prepare_pile()
+                                            destination_point.arrange_pile(for_what="add")
                                             self.selected_checker_origin = self.selected_checker.position
                                             self.selected_checker_destination = destination_point.get_checker_destination(
                                                 self.selected_checker)
@@ -263,7 +283,7 @@ class StefGammon(arcade.View):
                                 destination_point = self.get_point_by_id(25 - self.current_roll)
                                 if self.is_valid_move(checker, destination_point, self.rolls, self.used_rolls):
                                     self.set_selected_checker(checker)
-                                    destination_point.prepare_pile()
+                                    destination_point.arrange_pile(for_what="add")
                                     self.selected_checker_origin = self.selected_checker.position
                                     self.selected_checker_destination = destination_point.get_checker_destination(
                                         self.selected_checker)
@@ -277,9 +297,8 @@ class StefGammon(arcade.View):
                                 break
                     roll_index += 1
                 if len(self.dead_rolls) > 0:
-                    arcade.draw_text("Computer can't move. Your turn",SCREEN_WIDTH / 2, 17, color=arcade.color.WHITE, font_size=20,
-                                 anchor_x="center",
-                                 anchor_y="center")
+                    self.bottom_message = "CPU is out of moves. Your turn."
+                    self.bottom_message_time = BOTTOM_MSG_TIME
                     self.used_rolls = list(self.rolls)
 
             else:
@@ -287,7 +306,8 @@ class StefGammon(arcade.View):
                 self.used_rolls.clear()
                 self.dead_rolls.clear()
                 self.turn = 1 - self.turn
-                self.player_can_move = self.valid_move_exists(self.turn)
+                if self.winner is None:
+                    self.player_can_move = self.valid_move_exists(self.turn)
 
             ########################################
             # cpu resurrect
@@ -310,10 +330,10 @@ class StefGammon(arcade.View):
                 self.selected_checker = None
                 self.selected_checker_destination = None
                 if self.nr_of_beared_off[self.turn] == 17:
+                    self.used_rolls = list(self.rolls)
                     self.winner = self.turn
                     self.score[self.winner] += 1
-                    print(self.score)
-                if self.turn == 0 or (self.turn == 1 and not self.is_cpu_game):
+                if self.winner is None and (self.turn == 0 or (self.turn == 1 and not self.is_cpu_game)):
                     self.player_can_move = self.valid_move_exists(self.turn)
 
     def set_selected_checker(self, checker):
@@ -326,7 +346,9 @@ class StefGammon(arcade.View):
             self.selected_checker = checker
 
         elif len(self.dead_checker_list[self.turn]) == 0:
+            checker.point.arrange_pile(for_what="remove")
             checker.remove()
+
             self.selected_checker = checker
 
     def on_mouse_press(self, x, y, button, key_modifiers):
@@ -356,18 +378,18 @@ class StefGammon(arcade.View):
             if self.selected_checker_destination is None:
                 if self.winner is None:
                     # if len(self.used_rolls) == len(self.rolls):
-                    if not self.player_can_move:
-                        if 0 <= SCREEN_WIDTH / 2 + BOARD_WIDTH / 2 + PLAYER_STAT_WIDTH / 2 + 35 - x <= 70 and 0 <= SCREEN_HEIGHT / 2 + 35 - y <= 70 and self.turn == 0:
-                            self.rolls = self.dice.double_roll()
-                            self.used_rolls.clear()
-                            self.turn = 1 - self.turn
-                            self.player_can_move = self.valid_move_exists(self.turn)
+                    # if not self.player_can_move:
+                    if 0 <= SCREEN_WIDTH / 2 + BOARD_WIDTH / 2 + PLAYER_STAT_WIDTH / 2 + 35 - x <= 70 and 0 <= SCREEN_HEIGHT / 2 + 35 - y <= 70 and self.turn == 0:
+                        self.rolls = self.dice.double_roll()
+                        self.used_rolls.clear()
+                        self.turn = 1 - self.turn
+                        self.player_can_move = self.valid_move_exists(self.turn)
 
-                        elif 0 <= PLAYER_STAT_WIDTH / 2 + 35 - x <= 70 and 0 <= SCREEN_HEIGHT / 2 + 35 - y <= 70 and self.turn == 1 and not self.is_cpu_game:
-                            self.rolls = self.dice.double_roll()
-                            self.turn = 1 - self.turn
-                            self.used_rolls.clear()
-                            self.player_can_move = self.valid_move_exists(self.turn)
+                    elif 0 <= PLAYER_STAT_WIDTH / 2 + 35 - x <= 70 and 0 <= SCREEN_HEIGHT / 2 + 35 - y <= 70 and self.turn == 1 and not self.is_cpu_game:
+                        self.rolls = self.dice.double_roll()
+                        self.turn = 1 - self.turn
+                        self.used_rolls.clear()
+                        self.player_can_move = self.valid_move_exists(self.turn)
 
                     else:
                         if self.player_can_move:
@@ -375,12 +397,12 @@ class StefGammon(arcade.View):
                             for checker in clicked_checkers:
                                 if checker.colorr == self.turn and checker.is_selectable:
                                     self.set_selected_checker(checker)
+
                                     if self.selected_checker:
                                         break
                         else:
-                            arcade.draw_text("No possible moves. You have to seize your turn.", SCREEN_WIDTH / 2, 17, color=arcade.color.WHITE, font_size=20,
-                                 anchor_x="center",
-                                 anchor_y="center")
+                            self.bottom_message = "Out of moves. You have to seize your turn."
+                            self.bottom_message_time = BOTTOM_MSG_TIME
 
                 else:
                     if SCREEN_WIDTH / 2 - 100 <= x <= SCREEN_WIDTH / 2 + 100 and SCREEN_HEIGHT / 2 + 2 <= y <= SCREEN_HEIGHT / 2 + 52:
@@ -427,14 +449,21 @@ class StefGammon(arcade.View):
             if self.selected_checker is not None and self.selected_checker_destination is None:
                 if x > SCREEN_WIDTH - PLAYER_STAT_WIDTH and self.ready_for_bearoff(
                         0) or x < PLAYER_STAT_WIDTH and self.ready_for_bearoff(1):
-                    self.checker_state = "bear_off"
-                    self.selected_checker_origin = x, y
-                    self.selected_checker_destination = self.get_bear_off_destination(self.turn)
+                    if self.is_valid_move(self.selected_checker, None, self.rolls, self.used_rolls):
+                        self.checker_state = "bear_off"
+                        self.selected_checker_origin = x, y
+                        self.selected_checker_destination = self.get_bear_off_destination(self.turn)
+                    else:
+                        self.selected_checker.point.arrange_pile(for_what="add")
+                        self.selected_checker_destination = self.selected_checker.point.get_checker_destination(
+                            self.selected_checker)
+                        self.selected_checker_origin = x, y
+                        self.checker_state = "missplaced"
 
                 else:
                     closest_point, dist = arcade.get_closest_sprite(self.selected_checker, self.point_list)
                     if self.is_valid_move(self.selected_checker, closest_point, self.rolls, self.used_rolls):
-                        closest_point.prepare_pile()
+                        closest_point.arrange_pile(for_what="add")
                         self.selected_checker_origin = x, y
                         self.selected_checker_destination = closest_point.get_checker_destination(
                             self.selected_checker)
@@ -443,7 +472,7 @@ class StefGammon(arcade.View):
                     else:
                         # checker is in play
                         if self.selected_checker.point is not None:
-                            self.selected_checker.point.prepare_pile()
+                            self.selected_checker.point.arrange_pile(for_what="add")
                             self.selected_checker_destination = self.selected_checker.point.get_checker_destination(
                                 self.selected_checker)
                             self.selected_checker_origin = x, y
@@ -458,12 +487,28 @@ class StefGammon(arcade.View):
         available_rolls = list_difference(self.rolls, self.used_rolls)
         if len(available_rolls) == 0:
             return False
+        # if all checkers are in play
         if len(self.dead_checker_list[turn]) == 0:
             if self.ready_for_bearoff(turn):
+                # if there is a checker on roll position it can be beared_off
                 for roll in available_rolls:
                     point_id = 25 - roll if turn == 0 else roll
                     if self.get_point_by_id(point_id).checker_color == turn:
                         return True
+                # if there is a roll bigger than the max checker position, that checker can be beared_off
+                max_roll = max(available_rolls)
+                low = 19 if self.turn == 0 else 1
+                high = 25 if self.turn == 0 else 7
+                for point_id in reversed(range(low, high)):
+                    max_checker = self.get_point_by_id(point_id).get_top_checker()
+                    if max_checker is not None:
+                        if max_checker.colorr == self.turn:
+                            break
+                point_position = max_checker.point.id if self.turn == 1 else 25 - max_checker.point.id
+                if max_roll > point_position:
+                    return True
+
+            # if a checker can be moved
             for point in self.point_list:
                 top_checker = point.get_top_checker()
                 if top_checker is not None and top_checker.colorr == turn:
@@ -474,29 +519,14 @@ class StefGammon(arcade.View):
                             if potential_destination:
                                 if self.is_valid_move(top_checker, potential_destination, self.rolls, self.used_rolls):
                                     return True
-            if self.ready_for_bearoff(turn):
-                roll = max(available_rolls)
-                # if turn == 0:
-                #     for point_id in range (19, 25 - roll):
-                #         if self.get_point_by_id(point_id).checker_color:
-                #             return False
-                # else:
-                #     for point_id in range(roll, 7):
-                #         if self.get_point_by_id(point_id).checker_color:
-                #             return False
-
-                low = 19 if turn == 0 else roll + 1
-                high = 25 - roll if turn == 0 else 7
-                for point_id in range(low, high):
-                    if self.get_point_by_id(point_id).checker_color:
-                        return False
-
-
+        # if there's a dead checker
         else:
+            # find the selectable dead_checker
             for checker in self.dead_checker_list[turn]:
                 if checker.is_selectable:
                     dead_checker = checker
                     break
+            # check if it can be re-entered in play
             point_id = 1 if turn == 0 else 19
             while point_id != 7 and point_id != 25:
                 point = self.get_point_by_id(point_id)
@@ -506,26 +536,59 @@ class StefGammon(arcade.View):
         return False
 
     def is_valid_move(self, checker, point, rolls, used_rolls):
-        move_value = (point.id if checker.colorr == 0 else 25 - point.id) if checker.point is None else abs(
-            checker.point.id - point.id)
-        # if self.ready_for_bearoff(checker.colorr):
-        if move_value not in rolls:
-            return False
-        if len(rolls) == 2 and move_value in used_rolls:
-            return False
-        if len(point.checker_pile) > 1 and checker.colorr == 1 - point.checker_color:
-            return False
-        # if checker is in play (not dead) => verify if move direction is valid
-        if checker.point is not None:
-            if checker.colorr == 0 and point.id - checker.point.id < 0:
-                return False
-            if checker.colorr == 1 and point.id - checker.point.id > 0:
-                return False
-        # if checker is dead
+        # bear_off
+        if point is None:
+            self.current_roll = checker.point.id if checker.colorr == 1 else 25 - checker.point.id
         else:
-            # if dead checker placed outside house
-            if move_value > 6:
+            self.current_roll = (point.id if checker.colorr == 0 else 25 - point.id) if checker.point is None else abs(
+                checker.point.id - point.id)
+        available_rolls = list_difference(self.rolls, self.used_rolls)
+        if self.current_roll not in available_rolls:
+            if point is not None:
                 return False
+            # checker can be beared_off is no checker can be moved and is on point with highest id
+            else:
+                max_roll = max(available_rolls)
+                point_position = checker.point.id if self.turn == 1 else 25 - checker.point.id
+                if max_roll > point_position:
+                    low = 19 if self.turn == 0 else checker.point.id + 1
+                    high = checker.point.id if self.turn == 0 else 7
+                    for point_id in range(low, high):
+                        if self.get_point_by_id(point_id).checker_color == checker.colorr:
+                            return False
+                else:
+                    return False
+                self.current_roll = max_roll
+                return True
+                # check if any checker can move
+                # for point in self.point_list:
+                #     top_checker = point.get_top_checker()
+                #     if top_checker is not None and top_checker.colorr == self.turn:
+                #         for roll in available_rolls:
+                #             potential_destinations = [self.get_point_by_id(point.id + roll),
+                #                                       self.get_point_by_id(point.id - roll)]
+                #             for potential_destination in potential_destinations:
+                #                 if potential_destination:
+                #                     if self.is_valid_move(top_checker, potential_destination, self.rolls,
+                #                                           self.used_rolls):
+                #                         return False
+                # if no checker can move on board, checker can be removed if is on point with highest id
+        # if len(rolls) == 2 and self.current_roll in used_rolls:
+        #     return False
+        if point is not None:
+            if len(point.checker_pile) > 1 and checker.colorr == 1 - point.checker_color:
+                return False
+            # if checker is in play (not dead) => verify if move direction is valid
+            if checker.point is not None:
+                if checker.colorr == 0 and point.id - checker.point.id < 0:
+                    return False
+                if checker.colorr == 1 and point.id - checker.point.id > 0:
+                    return False
+            # if checker is dead
+            else:
+                # if dead checker placed outside house
+                if self.current_roll > 6:
+                    return False
         return True
 
     def on_mouse_motion(self, x: float, y: float, dx: float, dy: float):
@@ -605,31 +668,101 @@ class StefGammon(arcade.View):
 
 
 class MenuView(arcade.View):
-    def on_show(self):
-        """ Called when switching to this view"""
-        arcade.set_background_color(arcade.color.WHITE)
 
     def on_draw(self):
         """ Draw the menu """
         arcade.start_render()
-        arcade.draw_text("1v1", SCREEN_WIDTH / 4, SCREEN_HEIGHT / 2,
+        arcade.draw_lrwh_rectangle_textured(200, 0, BOARD_WIDTH, SCREEN_HEIGHT,
+                                            arcade.load_texture("resources/sg_board.png"))
+        arcade.draw_lrwh_rectangle_textured(0, 0, 200, SCREEN_HEIGHT, arcade.load_texture("resources/sg_side_l.png"))
+        arcade.draw_lrwh_rectangle_textured(1252, 0, 200, SCREEN_HEIGHT, arcade.load_texture("resources/sg_side_r.png"))
+        arcade.draw_line(SCREEN_WIDTH / 2, SCREEN_HEIGHT, SCREEN_WIDTH / 2, 0, arcade.color.BLACK, 1)
+        arcade.draw_text("Brain",  SCREEN_WIDTH / 2 - BOARD_WIDTH / 4, SCREEN_HEIGHT / 2,
+                         arcade.color.BLACK, font_size=30, anchor_x="center",)
+        arcade.draw_text("CPU", SCREEN_WIDTH / 2 + BOARD_WIDTH / 4, SCREEN_HEIGHT / 2,
                          arcade.color.BLACK, font_size=30, anchor_x="center")
-        arcade.draw_text("CPU vs 1", 3 * SCREEN_WIDTH / 4, SCREEN_HEIGHT / 2,
-                         arcade.color.BLACK, font_size=30, anchor_x="center")
+        arcade.draw_text("Choose opponent's processing unit", SCREEN_WIDTH / 2, 17, color=arcade.color.WHITE, font_size=20,
+                         anchor_x="center",
+                         anchor_y="center")
 
     def on_mouse_press(self, x, y, button, modifiers):
         """ Use a mouse press to advance to the 'game' view. """
         if x < SCREEN_WIDTH / 2:
-            stef_gammon = StefGammon(False)
+            player_view = PlayerView(False)
         else:
-            stef_gammon = StefGammon(True)
-        stef_gammon.setup()
-        self.window.show_view(stef_gammon)
+            player_view = PlayerView(True)
+        self.window.show_view(player_view)
+
+
+class PlayerView(arcade.View):
+    def __init__(self, is_cpu_game):
+        super().__init__()
+        # if is_CPU_game:
+        self.is_cpu_game = is_cpu_game
+        if not self.is_cpu_game:
+            self.avatar_images = [["resources/avatar_r_stef.png","resources/avatar_r_cos.png","resources/avatar_r_carol.png"],["resources/avatar_w_stef.png","resources/avatar_w_cos.png","resources/avatar_w_carol.png"]]
+        else:
+            self.avatar_images = [[],["resources/avatar_w_stef.png","resources/avatar_w_cos.png","resources/avatar_w_carol.png"]]
+        self.red_avatar = None
+        self.white_avatar = None
+        self.player_avatars = arcade.SpriteList()
+
+    def on_show(self):
+        if self.is_cpu_game:
+            avatar = arcade.Sprite("resources/avatar_cpu.png")
+            avatar.position = PLAYER_STAT_WIDTH / 2, SCREEN_HEIGHT / 2
+            self.player_avatars.append(avatar)
+        else:
+            for index, player_image in enumerate(self.avatar_images[0]):
+                avatar = arcade.Sprite(player_image)
+                avatar.position = PLAYER_STAT_WIDTH / 2, (index + 1) * SCREEN_HEIGHT / 4
+                self.player_avatars.append(avatar)
+
+
+        for index, player_image in enumerate(self.avatar_images[1]):
+            avatar = arcade.Sprite(player_image)
+            avatar.position = SCREEN_WIDTH - PLAYER_STAT_WIDTH / 2, (index + 1) * SCREEN_HEIGHT / 4
+            self.player_avatars.append(avatar)
+
+
+
+    def on_draw(self):
+        """ Draw the menu """
+        arcade.start_render()
+        arcade.draw_lrwh_rectangle_textured(200, 0, BOARD_WIDTH, SCREEN_HEIGHT,
+                                            arcade.load_texture("resources/sg_board.png"))
+        arcade.draw_lrwh_rectangle_textured(0, 0, 200, SCREEN_HEIGHT, arcade.load_texture("resources/sg_side_l.png"))
+        arcade.draw_lrwh_rectangle_textured(1252, 0, 200, SCREEN_HEIGHT, arcade.load_texture("resources/sg_side_r.png"))
+        arcade.draw_line(SCREEN_WIDTH / 2, SCREEN_HEIGHT, SCREEN_WIDTH / 2, 0, arcade.color.BLACK, 1)
+        self.player_avatars.draw()
+        arcade.draw_text("Choose player avatar", SCREEN_WIDTH / 2, 17, color=arcade.color.WHITE, font_size=20,
+                         anchor_x="center",
+                         anchor_y="center")
+
+    def on_mouse_press(self, x, y, button, modifiers):
+        """ Use a mouse press to advance to the 'game' view. """
+        avatar = arcade.get_sprites_at_point((x,y), self.player_avatars)[0]
+        if not self.is_cpu_game:
+            if avatar.center_x == PLAYER_STAT_WIDTH / 2:
+                self.red_avatar = avatar
+            if avatar.center_x == SCREEN_WIDTH - PLAYER_STAT_WIDTH / 2:
+                self.white_avatar = avatar
+        else:
+            self.red_avatar = self.player_avatars[0]
+            if avatar.center_x == SCREEN_WIDTH - PLAYER_STAT_WIDTH / 2:
+                self.white_avatar = avatar
+
+        if self.red_avatar is not None and self.white_avatar is not None:
+            stef_gammon = StefGammon(self.is_cpu_game, self.red_avatar, self.white_avatar)
+            self.window.show_view(stef_gammon)
+            stef_gammon.setup()
+
+
 
 
 def main():
     window = arcade.Window(SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_TITLE)
-    window.set_location(30, 30)
+    window.set_location(-1500, -50)
     start_view = MenuView()
     window.show_view(start_view)
     arcade.run()
