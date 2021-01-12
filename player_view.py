@@ -70,16 +70,18 @@ class PlayerView(arcade.View):
 
     def on_mouse_press(self, x, y, button, modifiers):
         """ Use a mouse press to advance to the 'game' view. """
-        avatar = arcade.get_sprites_at_point((x, y), self.player_avatars)[0]
-        if not self.is_cpu_game:
-            if avatar.center_x == PLAYER_STAT_WIDTH / 2:
-                self.red_avatar = avatar
-            if avatar.center_x == SCREEN_WIDTH - PLAYER_STAT_WIDTH / 2:
-                self.white_avatar = avatar
-        else:
-            self.red_avatar = self.player_avatars[0]
-            if avatar.center_x == SCREEN_WIDTH - PLAYER_STAT_WIDTH / 2:
-                self.white_avatar = avatar
+        avatar = arcade.get_sprites_at_point((x, y), self.player_avatars)
+        if len(avatar) > 0:
+            avatar = avatar[0]
+            if not self.is_cpu_game:
+                if avatar.center_x == PLAYER_STAT_WIDTH / 2:
+                    self.red_avatar = avatar
+                if avatar.center_x == SCREEN_WIDTH - PLAYER_STAT_WIDTH / 2:
+                    self.white_avatar = avatar
+            else:
+                self.red_avatar = self.player_avatars[0]
+                if avatar.center_x == SCREEN_WIDTH - PLAYER_STAT_WIDTH / 2:
+                    self.white_avatar = avatar
 
         if self.red_avatar is not None and self.white_avatar is not None:
             stef_gammon = StefGammon(self.is_cpu_game, self.red_avatar, self.white_avatar)

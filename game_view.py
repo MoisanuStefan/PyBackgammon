@@ -504,33 +504,34 @@ class StefGammon(arcade.View):
             if self.selected_checker_destination is None:
                 if self.winner is None:
                     # if len(self.used_rolls) == len(self.rolls):
-                    # if not self.player_can_move:
-                    if 0 <= SCREEN_WIDTH / 2 + BOARD_WIDTH / 2 + PLAYER_STAT_WIDTH / 2 + 35 - x <= 70 and \
-                            0 <= SCREEN_HEIGHT / 2 + 35 - y <= 70 and self.turn == 0:
-                        self.rolls = self.dice.double_roll()
-                        self.used_rolls.clear()
-                        self.turn = 1 - self.turn
-                        self.player_can_move = self.valid_move_exists(self.turn)
+                    if not self.player_can_move:
+                        if 0 <= SCREEN_WIDTH / 2 + BOARD_WIDTH / 2 + PLAYER_STAT_WIDTH / 2 + 35 - x <= 70 and \
+                                0 <= SCREEN_HEIGHT / 2 + 35 - y <= 70 and self.turn == 0:
+                            self.rolls = self.dice.double_roll()
+                            self.used_rolls.clear()
+                            self.turn = 1 - self.turn
+                            self.player_can_move = self.valid_move_exists(self.turn)
 
-                    elif 0 <= PLAYER_STAT_WIDTH / 2 + 35 - x <= 70 and 0 <= SCREEN_HEIGHT / 2 + 35 - y <= 70 and \
-                            self.turn == 1 and not self.is_cpu_game:
-                        self.rolls = self.dice.double_roll()
-                        self.turn = 1 - self.turn
-                        self.used_rolls.clear()
-                        self.player_can_move = self.valid_move_exists(self.turn)
-
-                    else:
-                        if self.player_can_move:
-                            clicked_checkers = arcade.get_sprites_at_point((x, y), self.checker_list)
-                            for checker in clicked_checkers:
-                                if checker.colorr == self.turn and checker.is_selectable:
-                                    self.set_selected_checker(checker)
-
-                                    if self.selected_checker:
-                                        break
+                        elif 0 <= PLAYER_STAT_WIDTH / 2 + 35 - x <= 70 and 0 <= SCREEN_HEIGHT / 2 + 35 - y <= 70 and \
+                                self.turn == 1 and not self.is_cpu_game:
+                            self.rolls = self.dice.double_roll()
+                            self.turn = 1 - self.turn
+                            self.used_rolls.clear()
+                            self.player_can_move = self.valid_move_exists(self.turn)
                         else:
                             self.bottom_message = "Out of moves. You have to seize your turn."
                             self.bottom_message_time = BOTTOM_MSG_TIME
+
+                    else:
+                        clicked_checkers = arcade.get_sprites_at_point((x, y), self.checker_list)
+                        for checker in clicked_checkers:
+                            if checker.colorr == self.turn and checker.is_selectable:
+                                self.set_selected_checker(checker)
+
+                                if self.selected_checker:
+                                    break
+
+
 
                 else:
                     if SCREEN_WIDTH / 2 - 100 <= x <= SCREEN_WIDTH / 2 + 100 and \
@@ -632,9 +633,10 @@ class StefGammon(arcade.View):
                         return True
                 # if there is a roll bigger than the max checker position, that checker can be beared_off
                 max_roll = max(available_rolls)
-                low = 19 if self.turn == 0 else 1
-                high = 25 if self.turn == 0 else 7
-                for point_id in reversed(range(low, high)):
+                low = 19 if self.turn == 0 else 7
+                high = 25 if self.turn == 0 else 1
+                step = 1 if self.turn == 0 else -1
+                for point_id in range(low, high, step):
                     max_checker = self.get_point_by_id(point_id).get_top_checker()
                     if max_checker is not None:
                         if max_checker.colorr == self.turn:
@@ -681,7 +683,8 @@ class StefGammon(arcade.View):
         available_rolls = list_difference(self.rolls, self.used_rolls)
         if self.current_roll not in available_rolls:
             if point is not None:
-                return False
+                # return False
+                pass
             # checker can be beared_off is no checker can be moved and is on point with highest id
             else:
                 max_roll = max(available_rolls)
@@ -690,7 +693,7 @@ class StefGammon(arcade.View):
                     low = 19 if self.turn == 0 else checker.point.id + 1
                     high = checker.point.id if self.turn == 0 else 7
                     for point_id in range(low, high):
-                        if self.get_point_by_id(point_id).checker_color == checker.colorr:
+                        if len(self.get_point_by_id(point_id).checker_pile) > 0:
                             return False
                 else:
                     return False
